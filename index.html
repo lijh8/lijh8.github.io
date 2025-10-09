@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>中国象棋</title>
+  <style>
+    /*
+    https://developer.mozilla.org/en-US/docs/Web/CSS/color-scheme
+    https://developer.mozilla.org/en-US/docs/Web/CSS/system-color
+    */
+
+    :root {
+      color-scheme: light dark;
+    }
+
+    /*
+    - the default background-color is too dark in dark mode.
+    - the system color Field is good in both light and dark mode.
+    - use Field as background color and FieldText as foreground color for
+      other non-builtin controls.
+    - LinkText is also good color for other purpose on Field background color.
+    */
+    body {
+      align-items: center;
+      display: flex;
+      background-color: Field;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      align-items: center;
+      display: flex;
+      gap: 8px;
+    }
+
+    #chessboard {
+      border: 1px solid;
+      cursor: default;
+    }
+
+    .controls {
+      align-items: center;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    textarea {
+      border: 1px solid;
+      font-family: monospace;
+      height: 230px;
+      resize: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <svg id="chessboard"></svg>
+    <div class="controls">
+      <textarea id="pathInput" placeholder="(2,1)-(3,3)&#10;(3,3)-(5,2)&#10;(5,2)-(4,4)"></textarea>
+      <div>
+        <button onclick="drawPaths()">绘制路径</button>
+        <button onclick="movePieces()">移动棋子</button>
+      </div>
+      <div>
+        <small>鼠标左键双击棋子可以移除棋子</small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 棋盘常量
+    const NUM_FILES = 9;
+    const NUM_RANKS = 10;
+    const FONT_SIZE = 20;
+    const RADIUS = FONT_SIZE * 0.65;
+    const CELL_SIZE = FONT_SIZE * 1.5;
+    const VERTICAL_MARGIN = RADIUS * 2;
+    const SVG_SIZE = (NUM_RANKS - 1) * CELL_SIZE + VERTICAL_MARGIN * 2;
+    const BOARD_WIDTH = (NUM_FILES - 1) * CELL_SIZE;
+    const BOARD_HEIGHT = (NUM_RANKS - 1) * CELL_SIZE;
+    const HORIZONTAL_MARGIN = (SVG_SIZE - BOARD_WIDTH) / 2;
+
+    // SVG 元素创建辅助函数
+    function el(tag, attributes = {}) {
+      const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      Object.entries(attributes).forEach(([key, value]) => {
+        element.setAttribute(key, value);
+      });
+      return element;
+    }
+
+    // 存储棋子状态
+    const PIECE_TEMPLATES = {
+      black: [
+        { cols: [1, 2, 3, 4, 5, 6, 7, 8, 9], row: 10, names: ["车", "马", "象", "士", "将", "士", "象", "马", "车"] },
+        { cols: [2, 8], row: 8, names: ["炮", "炮"] },
+        { cols: [1, 3, 5, 7, 9], row: 7, names: ["卒", "卒", "卒", "卒", "卒"] }
+      ],
+      red: [
+        { cols: [1, 2, 3, 4, 5, 6, 7, 8, 9], row: 1, names: ["车", "马", "相", "仕", "帅", "仕", "相", "马", "车"] },
+        { cols: [2, 8], row: 3, names: ["炮", "炮"] },
+        { cols: [1, 3, 5, 7, 9], row: 4, names: ["兵", "兵", "兵", "兵", "兵"] }
+      ]
+    };
+
+    let pieces = [];
+
+    Object.entries(PIECE_TEMPLATES).forEach(([color, templates]) => {
+      templates.forEach(template => {
+        template.cols.forEach((col, index) => {
+          pieces.push({
+            col,
+            row: template.row,
+            name: template.names[index],
+            color
+          });
+        });
+      });
+    });
+
+    // 存储路径
+    let currentPaths = [];
+
+    // 坐标转换
+    function toSVGPos(col, row) {
+      return {
+        x: HORIZONTAL_MARGIN + (NUM_FILES - col) * CELL_SIZE,
+        y: VERTICAL_MARGIN + (NUM_RANKS - row) * CELL_SIZE
+      };
+    }
+
+    // 解析路径
+    function parsePaths(input) {
+      if (!input.trim()) return [];
+      const pathRegex = /\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*-\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)/g;
+      const paths = [];
+      let match;
+      while ((match = pathRegex.exec(input)) !== null) {
+        const [c1, r1, c2, r2] = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
+        if ([c1, c2].every(c => c >= 1 && c <= NUM_FILES) && [r1, r2].every(r => r >= 1 && r <= NUM_RANKS)) {
+          paths.push({ c1, r1, c2, r2 });
+        }
+      }
+      return paths;
+    }
+
+    // 初始化棋盘
+    function initChessboard() {
+      const svg = document.getElementById('chessboard');
+      svg.setAttribute('width', SVG_SIZE);
+      svg.setAttribute('height', SVG_SIZE);
+      svg.innerHTML = '';
+
+      // 创建图层
+      const gridLayer = el('g', { id: 'gridLayer' });
+      const riverLayer = el('g', { id: 'riverLayer' });
+      const pathLayer = el('g', { id: 'paths' });
+      const pieceLayer = el('g', { id: 'pieces' });
+
+      // 绘制竖线
+      for (let i = 0; i < NUM_FILES; i++) {
+        const x = HORIZONTAL_MARGIN + i * CELL_SIZE;
+        const line = el('line', {
+          x1: x,
+          y1: VERTICAL_MARGIN,
+          x2: x,
+          y2: VERTICAL_MARGIN + BOARD_HEIGHT,
+          stroke: 'ButtonBorder'
+        });
+        gridLayer.appendChild(line);
+      }
+
+      // 绘制横线
+      for (let i = 0; i < NUM_RANKS; i++) {
+        const y = VERTICAL_MARGIN + i * CELL_SIZE;
+        const line = el('line', {
+          x1: HORIZONTAL_MARGIN,
+          y1: y,
+          x2: HORIZONTAL_MARGIN + BOARD_WIDTH,
+          y2: y,
+          stroke: 'ButtonBorder'
+        });
+        gridLayer.appendChild(line);
+      }
+
+      // 九宫格对角线
+      const addDiagonal = (x1, y1, x2, y2) => {
+        const line = el('line', {
+          x1, y1, x2, y2,
+          stroke: 'ButtonBorder'
+        });
+        gridLayer.appendChild(line);
+      };
+
+      const x3 = HORIZONTAL_MARGIN + 3 * CELL_SIZE;
+      const x5 = HORIZONTAL_MARGIN + 5 * CELL_SIZE;
+      const y0 = VERTICAL_MARGIN;
+      const y2 = VERTICAL_MARGIN + 2 * CELL_SIZE;
+      const y7 = VERTICAL_MARGIN + 7 * CELL_SIZE;
+      const y9 = VERTICAL_MARGIN + 9 * CELL_SIZE;
+
+      // 黑方九宫格
+      addDiagonal(x3, y0, x5, y2);
+      addDiagonal(x5, y0, x3, y2);
+      // 红方九宫格
+      addDiagonal(x3, y7, x5, y9);
+      addDiagonal(x5, y7, x3, y9);
+
+      svg.appendChild(gridLayer);
+
+      // 楚河汉界
+      const riverY = VERTICAL_MARGIN + 4 * CELL_SIZE;
+      const rect = el('rect', {
+        x: HORIZONTAL_MARGIN,
+        y: riverY,
+        width: BOARD_WIDTH,
+        height: CELL_SIZE,
+        fill: 'Field'
+      });
+      riverLayer.appendChild(rect);
+
+      const text = el('text', {
+        x: HORIZONTAL_MARGIN + BOARD_WIDTH / 2,
+        y: riverY + CELL_SIZE / 2,
+        'font-size': FONT_SIZE,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: 'FieldText'
+      });
+      text.textContent = "楚 河 汉 界";
+      riverLayer.appendChild(text);
+
+      svg.appendChild(riverLayer);
+      svg.appendChild(pathLayer);
+      svg.appendChild(pieceLayer);
+
+      // 绘制初始棋子
+      drawPieces();
+    }
+
+    // 绘制棋子
+    function drawPieces() {
+      const pieceLayer = document.getElementById('pieces');
+      pieceLayer.innerHTML = '';
+
+      pieces.forEach(p => {
+        const pos = toSVGPos(p.col, p.row);
+        const g = el('g', { 'data-pos': `${p.col},${p.row}` });
+
+        const circle = el('circle', {
+          cx: pos.x,
+          cy: pos.y,
+          r: RADIUS,
+          fill: 'Field',
+          stroke: 'FieldText'
+        });
+        g.appendChild(circle);
+
+        const text = el('text', {
+          x: pos.x,
+          y: pos.y,
+          'font-size': FONT_SIZE,
+          'text-anchor': 'middle',
+          'dominant-baseline': 'middle',
+          fill: p.color === 'black' ? 'FieldText' : p.color
+        });
+        text.textContent = p.name;
+        g.appendChild(text);
+
+        g.addEventListener('dblclick', () => {
+          // 从数组中移除棋子
+          const index = pieces.findIndex(piece => piece.col === p.col && piece.row === p.row);
+          if (index !== -1) {
+            pieces.splice(index, 1);
+          }
+          g.remove();
+        });
+        pieceLayer.appendChild(g);
+      });
+    }
+
+    function drawPaths() {
+      const pathLayer = document.getElementById('paths');
+      pathLayer.innerHTML = '';
+      currentPaths = parsePaths(document.getElementById('pathInput').value);
+
+      currentPaths.forEach(path => {
+        const p1 = toSVGPos(path.c1, path.r1);
+        const p2 = toSVGPos(path.c2, path.r2);
+        const line = el('line', {
+          x1: p1.x,
+          y1: p1.y,
+          x2: p2.x,
+          y2: p2.y,
+          stroke: 'LinkText',
+          'stroke-dasharray': '5,5',
+          'stroke-width': '2'
+        });
+        pathLayer.appendChild(line);
+      });
+    }
+
+    function hasPieceAt(col, row) {
+      return pieces.some(p => p.col === col && p.row === row);
+    }
+
+    function movePieces() {
+      const moves = parsePaths(document.getElementById('pathInput').value);
+
+      for (const move of moves) {
+        if (!hasPieceAt(move.c1, move.r1)) {
+          console.log(`源坐标 (${move.c1},${move.r1}) 没有棋子！`);
+          break;
+        }
+        if (hasPieceAt(move.c2, move.r2)) {
+          console.log(`目标坐标 (${move.c2},${move.r2}) 已有棋子！`);
+          break;
+        }
+
+        // 更新棋子数组中的位置
+        const pieceIndex = pieces.findIndex(p => p.col === move.c1 && p.row === move.r1);
+        if (pieceIndex === -1) continue;
+
+        const piece = pieces[pieceIndex];
+        piece.col = move.c2;
+        piece.row = move.r2;
+
+        // 更新DOM中的棋子位置
+        const pieceElement = document.querySelector(`#pieces g[data-pos="${move.c1},${move.r1}"]`);
+        if (!pieceElement) continue;
+
+        pieceElement.dataset.pos = `${move.c2},${move.r2}`;
+        const newPos = toSVGPos(move.c2, move.r2);
+        pieceElement.querySelector('circle').setAttribute("cx", newPos.x);
+        pieceElement.querySelector('circle').setAttribute("cy", newPos.y);
+        pieceElement.querySelector('text').setAttribute("x", newPos.x);
+        pieceElement.querySelector('text').setAttribute("y", newPos.y);
+      }
+    }
+
+    initChessboard();
+  </script>
+</body>
+
+</html>
