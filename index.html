@@ -61,7 +61,7 @@
   <div class="container">
     <svg id="chessboard"></svg>
     <div class="controls">
-      <textarea id="pathInput" placeholder="(2,1)-(3,3)&#10;(3,3)-(5,2)&#10;(5,2)-(4,4)"></textarea>
+      <textarea id="pathInput" placeholder="(2,1)-(3,3)&#10;(3,3)-(5,2)-(7,3)"></textarea>
       <div>
         <button onclick="drawPaths()">绘制路径</button>
         <button onclick="movePieces()">移动棋子</button>
@@ -136,16 +136,23 @@
 
     // 解析路径
     function parsePaths(input) {
-      if (!input.trim()) return [];
-      const pathRegex = /\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*-\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)/g;
       const paths = [];
-      let match;
-      while ((match = pathRegex.exec(input)) !== null) {
-        const [c1, r1, c2, r2] = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), parseInt(match[4])];
-        if ([c1, c2].every(c => c >= 1 && c <= NUM_FILES) && [r1, r2].every(r => r >= 1 && r <= NUM_RANKS)) {
-          paths.push({ c1, r1, c2, r2 });
+      const pathMatches = input.match(/\(\s*\d+\s*,\s*\d+\s*\)(?:\s*-\s*\(\s*\d+\s*,\s*\d+\s*\))+/g) || [];
+
+      for (const pathStr of pathMatches) {
+        const points = pathStr.match(/\d+/g).map(Number);
+
+        for (let i = 0; i < points.length - 2; i += 2) {
+          const c1 = points[i], r1 = points[i + 1];
+          const c2 = points[i + 2], r2 = points[i + 3];
+
+          if (c1 >= 1 && c1 <= NUM_FILES && r1 >= 1 && r1 <= NUM_RANKS &&
+            c2 >= 1 && c2 <= NUM_FILES && r2 >= 1 && r2 <= NUM_RANKS) {
+            paths.push({ c1, r1, c2, r2 });
+          }
         }
       }
+
       return paths;
     }
 
