@@ -126,12 +126,22 @@
     // 存储路径
     let currentPaths = [];
 
-    // 坐标转换
+    // 存储选中的棋子
+    let selectedPiece = null;
+
+    // 从棋盘坐标转换为SVG坐标
     function toSVGPos(col, row) {
       return {
         x: HORIZONTAL_MARGIN + (NUM_FILES - col) * CELL_SIZE,
         y: VERTICAL_MARGIN + (NUM_RANKS - row) * CELL_SIZE
       };
+    }
+
+    // 从SVG坐标转换为棋盘坐标
+    function fromSVGPos(x, y) {
+      const col = NUM_FILES - Math.round((x - HORIZONTAL_MARGIN) / CELL_SIZE);
+      const row = NUM_RANKS - Math.round((y - VERTICAL_MARGIN) / CELL_SIZE);
+      return { col, row };
     }
 
     // 解析路径
@@ -248,6 +258,9 @@
 
       // 绘制初始棋子
       drawPieces();
+
+      // 添加棋盘点击事件
+      svg.addEventListener('click', handleBoardClick);
     }
 
     // 绘制棋子
@@ -257,26 +270,26 @@
 
       pieces.forEach(p => {
         const pos = toSVGPos(p.col, p.row);
-        const g = el('g', { 'data-pos': `${p.col},${p.row}` });
+        const g = el('g', {
+          'data-pos': `${p.col},${p.row}`,
+          transform: `translate(${pos.x},${pos.y})`
+        });
 
         const circle = el('circle', {
-          cx: pos.x,
-          cy: pos.y,
           r: RADIUS,
           fill: 'Field',
           stroke: 'FieldText'
         });
-        g.appendChild(circle);
 
         const text = el('text', {
-          x: pos.x,
-          y: pos.y,
           'font-size': FONT_SIZE,
           'text-anchor': 'middle',
           'dominant-baseline': 'middle',
           fill: p.color === 'black' ? 'FieldText' : p.color
         });
         text.textContent = p.name;
+
+        g.appendChild(circle);
         g.appendChild(text);
 
         g.addEventListener('dblclick', () => {
@@ -289,6 +302,97 @@
         });
         pieceLayer.appendChild(g);
       });
+    }
+
+    // 处理棋盘点击事件
+    function handleBoardClick(event) {
+      const svg = document.getElementById('chessboard');
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
+
+      const { col, row } = fromSVGPos(svgPoint.x, svgPoint.y);
+
+      // 检查点击位置是否在棋盘范围内
+      if (col < 1 || col > NUM_FILES || row < 1 || row > NUM_RANKS) {
+        return;
+      }
+
+      // 检查点击位置是否有棋子
+      const clickedPiece = pieces.find(p => p.col === col && p.row === row);
+
+      if (clickedPiece) {
+        // 点击了棋子，选中它
+        selectPiece(clickedPiece);
+      } else if (selectedPiece) {
+        // 点击了空交叉点且有棋子被选中，移动棋子
+        moveSelectedPiece(col, row);
+      }
+    }
+
+    // 选中棋子
+    function selectPiece(piece) {
+      // 清除之前选中的棋子
+      clearSelection();
+
+      // 设置新选中的棋子
+      selectedPiece = piece;
+
+      // 高亮显示选中的棋子
+      const pieceElements = document.querySelectorAll('#pieces g');
+      pieceElements.forEach(element => {
+        const pos = element.dataset.pos.split(',').map(Number);
+        if (pos[0] === piece.col && pos[1] === piece.row) {
+          const circle = element.querySelector('circle');
+          circle.setAttribute('stroke', 'LinkText');
+        }
+      });
+    }
+
+    // 清除选中状态
+    function clearSelection() {
+      if (!selectedPiece) return;
+
+      const pieceElements = document.querySelectorAll('#pieces g');
+      pieceElements.forEach(element => {
+        const circle = element.querySelector('circle');
+        circle.setAttribute('stroke', 'FieldText');
+        // circle.setAttribute('stroke-width', '1');
+      });
+
+      selectedPiece = null;
+    }
+
+    // 移动选中的棋子
+    function moveSelectedPiece(toCol, toRow) {
+      if (!selectedPiece) return;
+
+      // 检查目标位置是否为空
+      if (hasPieceAt(toCol, toRow)) {
+        return;
+      }
+
+      // 更新棋子数组中的位置
+      const pieceIndex = pieces.findIndex(p => p.col === selectedPiece.col && p.row === selectedPiece.row);
+      if (pieceIndex === -1) return;
+
+      const oldCol = selectedPiece.col;
+      const oldRow = selectedPiece.row;
+
+      pieces[pieceIndex].col = toCol;
+      pieces[pieceIndex].row = toRow;
+
+      // 更新DOM中的棋子位置
+      const pieceElement = document.querySelector(`#pieces g[data-pos="${oldCol},${oldRow}"]`);
+      if (!pieceElement) return;
+
+      pieceElement.dataset.pos = `${toCol},${toRow}`;
+      const newPos = toSVGPos(toCol, toRow);
+      pieceElement.setAttribute('transform', `translate(${newPos.x},${newPos.y})`);
+
+      // 清除选中状态
+      clearSelection();
     }
 
     function drawPaths() {
@@ -320,14 +424,8 @@
       const moves = parsePaths(document.getElementById('pathInput').value);
 
       for (const move of moves) {
-        if (!hasPieceAt(move.c1, move.r1)) {
-          console.log(`源坐标 (${move.c1},${move.r1}) 没有棋子！`);
-          break;
-        }
-        if (hasPieceAt(move.c2, move.r2)) {
-          console.log(`目标坐标 (${move.c2},${move.r2}) 已有棋子！`);
-          break;
-        }
+        if (!hasPieceAt(move.c1, move.r1)) break;
+        if (hasPieceAt(move.c2, move.r2)) break;
 
         // 更新棋子数组中的位置
         const pieceIndex = pieces.findIndex(p => p.col === move.c1 && p.row === move.r1);
@@ -343,10 +441,8 @@
 
         pieceElement.dataset.pos = `${move.c2},${move.r2}`;
         const newPos = toSVGPos(move.c2, move.r2);
-        pieceElement.querySelector('circle').setAttribute("cx", newPos.x);
-        pieceElement.querySelector('circle').setAttribute("cy", newPos.y);
-        pieceElement.querySelector('text').setAttribute("x", newPos.x);
-        pieceElement.querySelector('text').setAttribute("y", newPos.y);
+        pieceElement.setAttribute('transform', `translate(${newPos.x},${newPos.y})`);
+        pieceElement.dataset.pos = `${move.c2},${move.r2}`;
       }
     }
 
