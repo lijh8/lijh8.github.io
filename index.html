@@ -10,21 +10,24 @@
     https://developer.mozilla.org/en-US/docs/Web/CSS/system-color
     */
 
-    :root {
+    /* :root {
       color-scheme: light dark;
-    }
+    } */
 
     /*
     - the default background-color is too dark in dark mode.
-    - the system color Field is good in both light and dark mode.
-    - use Field as background color and FieldText as foreground color for
+    - the system color Canvas is good in both light and dark mode.
+    - use Canvas as background color and CanvasText as foreground color for
       other non-builtin controls.
-    - LinkText is also good color for other purpose on Field background color.
+    - LinkText is also good color for other purpose on Canvas background color.
+
+    - the dark/light theme switch is bad in safari 17.6 on macOS 12.7.6,
+      so dark/light theme is cancelled.
     */
     body {
       align-items: center;
       display: flex;
-      background-color: Field;
+      /* background-color: Canvas; */
       flex-direction: column;
       justify-content: center;
       min-height: 100vh;
@@ -187,7 +190,7 @@
           y1: VERTICAL_MARGIN,
           x2: x,
           y2: VERTICAL_MARGIN + BOARD_HEIGHT,
-          stroke: 'ButtonBorder'
+          stroke: 'CanvasText'
         });
         gridLayer.appendChild(line);
       }
@@ -200,7 +203,7 @@
           y1: y,
           x2: HORIZONTAL_MARGIN + BOARD_WIDTH,
           y2: y,
-          stroke: 'ButtonBorder'
+          stroke: 'CanvasText'
         });
         gridLayer.appendChild(line);
       }
@@ -209,7 +212,7 @@
       const addDiagonal = (x1, y1, x2, y2) => {
         const line = el('line', {
           x1, y1, x2, y2,
-          stroke: 'ButtonBorder'
+          stroke: 'CanvasText'
         });
         gridLayer.appendChild(line);
       };
@@ -237,7 +240,7 @@
         y: riverY,
         width: BOARD_WIDTH,
         height: CELL_SIZE,
-        fill: 'Field'
+        fill: 'Canvas'
       });
       riverLayer.appendChild(rect);
 
@@ -247,7 +250,7 @@
         'font-size': FONT_SIZE,
         'text-anchor': 'middle',
         'dominant-baseline': 'middle',
-        fill: 'FieldText'
+        fill: 'CanvasText'
       });
       text.textContent = "楚 河 汉 界";
       riverLayer.appendChild(text);
@@ -277,15 +280,16 @@
 
         const circle = el('circle', {
           r: RADIUS,
-          fill: 'Field',
-          stroke: 'FieldText'
+          fill: 'Canvas',
+          stroke: 'CanvasText'
         });
 
         const text = el('text', {
           'font-size': FONT_SIZE,
           'text-anchor': 'middle',
           'dominant-baseline': 'middle',
-          fill: p.color === 'black' ? 'FieldText' : p.color
+          // fill: p.color === 'black' ? 'CanvasText' : p.color
+          fill: p.color
         });
         text.textContent = p.name;
 
@@ -346,6 +350,7 @@
         if (pos[0] === piece.col && pos[1] === piece.row) {
           const circle = element.querySelector('circle');
           circle.setAttribute('stroke', 'LinkText');
+          circle.setAttribute('stroke-width', '2');
         }
       });
     }
@@ -357,8 +362,8 @@
       const pieceElements = document.querySelectorAll('#pieces g');
       pieceElements.forEach(element => {
         const circle = element.querySelector('circle');
-        circle.setAttribute('stroke', 'FieldText');
-        // circle.setAttribute('stroke-width', '1');
+        circle.setAttribute('stroke', 'CanvasText');
+        circle.setAttribute('stroke-width', '1');
       });
 
       selectedPiece = null;
