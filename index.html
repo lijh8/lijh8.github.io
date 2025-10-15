@@ -5,27 +5,41 @@
     <meta charset="UTF-8" />
     <title>中国象棋</title>
     <style>
+        :root {
+            color-scheme: light dark;
+            --bg-color: #f8f9fa;
+            --fg-color: #212529;
+            --red-piece-color: #d32f2f;
+            --path-color: #1565c0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #212529;
+                --fg-color: #f8f9fa;
+                --red-piece-color: #ff5252;
+                --path-color: #64b5f6;
+            }
+        }
+
         body {
             align-items: center;
+            background-color: var(--bg-color);
             display: flex;
             flex-direction: column;
             justify-content: center;
-            min-height: 100vh;
             margin: 0;
-            background: #e9ecef;
+            min-height: 100vh;
         }
 
         .container {
             align-items: center;
             display: flex;
-            gap: 20px;
-            padding: 20px;
+            gap: 8px;
         }
 
         #chessboard {
-            border: 2px solid #8B4513;
-            border-radius: 8px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--fg-color);
             cursor: default;
         }
 
@@ -33,56 +47,13 @@
             align-items: center;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            min-width: 200px;
+            gap: 8px;
         }
 
         textarea {
             font-family: monospace;
             height: 200px;
-            width: 100%;
             resize: none;
-            border: 1px solid #8B4513;
-            border-radius: 6px;
-            padding: 12px;
-            background: white;
-        }
-
-        .buttons {
-            display: flex;
-            gap: 8px;
-            width: 100%;
-        }
-
-        button {
-            background: #8B4513;
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex: 1;
-            font-size: 14px;
-        }
-
-        button:hover {
-            background: #A0522D;
-            transform: translateY(-1px);
-        }
-
-        .instructions {
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-            line-height: 1.4;
-            margin-top: 8px;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
         }
     </style>
 </head>
@@ -91,46 +62,35 @@
     <div class="container">
         <svg id="chessboard"></svg>
         <div class="controls">
-            <textarea id="pathInput" placeholder="输入移动路径，例如：&#10;(2,1)-(3,3)&#10;(3,3)-(5,2)-(7,3)"></textarea>
+            <textarea id="pathInput" placeholder="(2,1)-(3,3)&#10;(3,3)-(5,2)-(7,3)"></textarea>
             <div class="buttons">
-                <button onclick="drawPaths()">绘制路径</button>
-                <button onclick="movePieces()">移动棋子</button>
+                <button id="drawPathsBtn">绘制路径</button>
+                <button id="movePiecesBtn">移动棋子</button>
             </div>
-            <div class="instructions">
-                鼠标单击选择棋子<br>
-                再选目标点移动<br>
-                双击移除棋子
+            <div style="text-align: center;">
+                <small>
+                    单击选择棋子<br>
+                    再选目标点移动<br>
+                    双击移除棋子
+                </small>
             </div>
         </div>
     </div>
 
     <script>
-        // 常量配置
+        const PIECE_SIZE = 20;
         const CONFIG = {
             NUM_FILES: 9,
-            NUM_RANKS: 10,
-            FONT_SIZE: 25,
-            COLORS: {
-                WOOD_BASE: '#D2B48C',
-                WOOD_DARK: '#8B4513',
-                WOOD_MEDIUM: '#A0522D',
-                WOOD_DARKEST: '#654321',
-                RED_PIECE: '#8B0000',
-                BLACK_PIECE: '#000',
-                PATH: '#FF4500'
-            }
+            NUM_RANKS: 10
         };
-
-        // 计算派生常量
-        const CELL_SIZE = CONFIG.FONT_SIZE * 1.5;
-        const RADIUS = CONFIG.FONT_SIZE * 0.65;
+        const CELL_SIZE = PIECE_SIZE * 1.5;
+        const RADIUS = PIECE_SIZE * 0.65;
         const VERTICAL_MARGIN = RADIUS * 2;
-        const SVG_SIZE = (CONFIG.NUM_RANKS - 1) * CELL_SIZE + VERTICAL_MARGIN * 2;
         const BOARD_WIDTH = (CONFIG.NUM_FILES - 1) * CELL_SIZE;
         const BOARD_HEIGHT = (CONFIG.NUM_RANKS - 1) * CELL_SIZE;
+        const SVG_SIZE = BOARD_HEIGHT + VERTICAL_MARGIN * 2;
         const HORIZONTAL_MARGIN = (SVG_SIZE - BOARD_WIDTH) / 2;
 
-        // 坐标转换对象
         const coordinate = {
             toSVGPos(col, row) {
                 return {
@@ -138,19 +98,16 @@
                     y: VERTICAL_MARGIN + (CONFIG.NUM_RANKS - row) * CELL_SIZE
                 };
             },
-
             toBoardPos(x, y) {
                 const col = CONFIG.NUM_FILES - Math.round((x - HORIZONTAL_MARGIN) / CELL_SIZE);
                 const row = CONFIG.NUM_RANKS - Math.round((y - VERTICAL_MARGIN) / CELL_SIZE);
                 return { col, row };
             },
-
             isValidPosition(col, row) {
                 return col >= 1 && col <= CONFIG.NUM_FILES && row >= 1 && row <= CONFIG.NUM_RANKS;
             }
         };
 
-        // 棋子初始配置
         const PIECE_TEMPLATES = {
             black: [
                 { cols: [1, 2, 3, 4, 5, 6, 7, 8, 9], row: 10, names: ["车", "马", "象", "士", "将", "士", "象", "马", "车"] },
@@ -164,160 +121,91 @@
             ]
         };
 
-        // 全局状态
         let pieces = [];
         let currentPaths = [];
         let selectedPiece = null;
 
-        // DOM 工具函数
         function el(tag, attributes = {}) {
             const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
             Object.entries(attributes).forEach(([key, value]) => {
-                element.setAttribute(key, value);
+                element.setAttribute(key, String(value));
             });
             return element;
         }
 
-        // 木材纹理生成
-        function createWoodTexture() {
-            const texture = el('defs');
-            const pattern = el('pattern', {
-                id: 'woodPattern',
-                patternUnits: 'userSpaceOnUse',
-                width: SVG_SIZE,
-                height: SVG_SIZE
-            });
-
-            // 基础背景
-            pattern.appendChild(el('rect', {
-                width: '100%',
-                height: '100%',
-                fill: CONFIG.COLORS.WOOD_BASE
-            }));
-
-            // 生成随机木材纹理
-            const createWoodGrain = (count, colors, widthRange, opacityRange) => {
-                for (let i = 0; i < count; i++) {
-                    const x = Math.random() * SVG_SIZE;
-                    const width = widthRange[0] + Math.random() * widthRange[1];
-                    const opacity = opacityRange[0] + Math.random() * opacityRange[1];
-                    const color = colors[i % colors.length];
-
-                    const pathData = ['M', x, 0];
-                    let currentY = 0;
-
-                    while (currentY < SVG_SIZE) {
-                        const segmentHeight = 20 + Math.random() * 50;
-                        const nextY = Math.min(currentY + segmentHeight, SVG_SIZE);
-                        const controlX = x + (Math.random() - 0.5) * 30;
-                        const controlY = currentY + segmentHeight / 2;
-                        const endX = x + (Math.random() - 0.5) * 15;
-
-                        pathData.push('Q', controlX, controlY, endX, nextY);
-                        currentY = nextY;
-                    }
-
-                    pattern.appendChild(el('path', {
-                        d: pathData.join(' '),
-                        stroke: color,
-                        'stroke-width': width,
-                        opacity: opacity,
-                        fill: 'none'
-                    }));
-                }
-            };
-
-            // 添加主要纹理和细节纹理
-            createWoodGrain(40, [CONFIG.COLORS.WOOD_DARK, CONFIG.COLORS.WOOD_MEDIUM], [3, 8], [0.1, 0.2]);
-            createWoodGrain(15, [CONFIG.COLORS.WOOD_DARKEST], [1, 3], [0.15, 0.1]);
-
-            texture.appendChild(pattern);
-            return texture;
-        }
-
-        // 棋盘绘制函数
         function drawGrid() {
-            const gridLayer = el('g', { id: 'gridLayer' });
+            const gridLayer = el('g');
 
-            // 绘制横线
             for (let i = 0; i < CONFIG.NUM_RANKS; i++) {
-                const y = VERTICAL_MARGIN + i * CELL_SIZE;
+                const y = VERTICAL_MARGIN + i * CELL_SIZE + 0.5; // 1px的svg直线把坐标加0.5更清晰
                 gridLayer.appendChild(el('line', {
                     x1: HORIZONTAL_MARGIN, y1: y,
                     x2: HORIZONTAL_MARGIN + BOARD_WIDTH, y2: y,
-                    stroke: CONFIG.COLORS.WOOD_DARK,
-                    'stroke-width': '1.5'
+                    stroke: 'var(--fg-color)',
+                    'stroke-width': '1'
                 }));
             }
 
-            // 绘制竖线
             for (let i = 0; i < CONFIG.NUM_FILES; i++) {
-                const x = HORIZONTAL_MARGIN + i * CELL_SIZE;
+                const x = HORIZONTAL_MARGIN + i * CELL_SIZE + 0.5; // 1px的svg直线把坐标加0.5更清晰
                 gridLayer.appendChild(el('line', {
                     x1: x, y1: VERTICAL_MARGIN,
                     x2: x, y2: VERTICAL_MARGIN + BOARD_HEIGHT,
-                    stroke: CONFIG.COLORS.WOOD_DARK,
-                    'stroke-width': '1.5'
+                    stroke: 'var(--fg-color)',
+                    'stroke-width': '1'
                 }));
             }
 
-            // 绘制斜线（九宫格）
             const drawDiagonal = (x1, y1, x2, y2) => {
-                gridLayer.appendChild(el('line', {
-                    x1, y1, x2, y2,
-                    stroke: CONFIG.COLORS.WOOD_DARK,
-                    'stroke-width': '1.5'
-                }));
+                gridLayer.appendChild(el('line', { x1, y1, x2, y2, stroke: 'var(--fg-color)', 'stroke-width': '1' }));
             };
 
-            const x3 = HORIZONTAL_MARGIN + 3 * CELL_SIZE;
-            const x5 = HORIZONTAL_MARGIN + 5 * CELL_SIZE;
-            const y0 = VERTICAL_MARGIN;
-            const y2 = VERTICAL_MARGIN + 2 * CELL_SIZE;
-            const y7 = VERTICAL_MARGIN + 7 * CELL_SIZE;
-            const y9 = VERTICAL_MARGIN + 9 * CELL_SIZE;
+            const diagonals = [
+                { c1: 4, r1: 8, c2: 6, r2: 10 },
+                { c1: 4, r1: 10, c2: 6, r2: 8 },
+                { c1: 4, r1: 1, c2: 6, r2: 3 },
+                { c1: 4, r1: 3, c2: 6, r2: 1 },
+            ];
 
-            drawDiagonal(x3, y0, x5, y2);
-            drawDiagonal(x5, y0, x3, y2);
-            drawDiagonal(x3, y7, x5, y9);
-            drawDiagonal(x5, y7, x3, y9);
+            diagonals.forEach(d => {
+                const p1 = coordinate.toSVGPos(d.c1, d.r1);
+                const p2 = coordinate.toSVGPos(d.c2, d.r2);
+                drawDiagonal(p1.x, p1.y, p2.x, p2.y);
+            });
 
             return gridLayer;
         }
 
         function drawRiver() {
-            const riverLayer = el('g', { id: 'riverLayer' });
+            const riverLayer = el('g');
             const riverY = VERTICAL_MARGIN + 4 * CELL_SIZE;
 
-            // 楚河汉界背景
             riverLayer.appendChild(el('rect', {
-                x: HORIZONTAL_MARGIN,
-                y: riverY,
+                x: HORIZONTAL_MARGIN + 0.5, // 1px的svg直线把坐标加0.5更清晰
+                y: riverY + 0.5,
                 width: BOARD_WIDTH,
                 height: CELL_SIZE,
-                fill: 'url(#woodPattern)',
-                'stroke': 'none'
+                fill: 'var(--bg-color)'
             }));
 
-            // 楚河汉界文字
             const riverText = el('text', {
-                x: HORIZONTAL_MARGIN + BOARD_WIDTH / 2,
-                y: riverY + CELL_SIZE / 2,
-                'font-size': CONFIG.FONT_SIZE,
-                'text-anchor': 'middle',
+                x: HORIZONTAL_MARGIN + BOARD_WIDTH / 2 + 0.5, // 1px的svg直线把坐标加0.5更清晰
+                y: riverY + CELL_SIZE / 2 + 0.5,
+                fill: 'var(--fg-color)',
+                'font-size': PIECE_SIZE,
                 'dominant-baseline': 'middle',
-                fill: CONFIG.COLORS.WOOD_DARK,
-                'font-weight': 'bold'
+                'text-anchor': 'middle'
             });
+
             riverText.textContent = "楚 河 汉 界";
             riverLayer.appendChild(riverText);
 
             return riverLayer;
         }
 
-        // 棋子管理函数
         function initializePieces() {
             pieces = [];
+
             Object.entries(PIECE_TEMPLATES).forEach(([color, templates]) => {
                 templates.forEach(template => {
                     template.cols.forEach((col, index) => {
@@ -346,36 +234,32 @@
                     transform: `translate(${pos.x}, ${pos.y})`
                 });
 
-                // 棋子圆形背景
                 g.appendChild(el('circle', {
                     r: RADIUS,
-                    fill: 'Canvas',
-                    stroke: piece.color === 'black' ? CONFIG.COLORS.BLACK_PIECE : CONFIG.COLORS.RED_PIECE,
+                    fill: 'var(--bg-color)',
+                    stroke: 'var(--fg-color)',
                     'stroke-width': '1'
                 }));
 
-                // 棋子文字
                 const text = el('text', {
-                    'font-size': CONFIG.FONT_SIZE,
-                    'text-anchor': 'middle',
+                    fill: piece.color === 'black' ? 'var(--fg-color)' : 'var(--red-piece-color)',
+                    'font-size': PIECE_SIZE,
                     'dominant-baseline': 'middle',
-                    fill: piece.color === 'black' ? CONFIG.COLORS.BLACK_PIECE : CONFIG.COLORS.RED_PIECE,
+                    'text-anchor': 'middle'
                 });
+
                 text.textContent = piece.name;
                 g.appendChild(text);
-
-                // 事件监听
                 g.addEventListener('dblclick', (e) => handlePieceDoubleClick(e, piece));
                 g.addEventListener('click', (e) => handlePieceClick(e, piece));
-
                 pieceLayer.appendChild(g);
             });
         }
 
-        // 事件处理函数
         function handlePieceDoubleClick(e, piece) {
             e.stopPropagation();
             const idx = pieces.findIndex(p => p.col === piece.col && p.row === piece.row);
+
             if (idx !== -1) {
                 pieces.splice(idx, 1);
                 e.target.closest('g').remove();
@@ -408,49 +292,42 @@
             pt.x = e.clientX;
             pt.y = e.clientY;
             const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-            const boardPos = coordinate.toBoardPos(svgP.x, svgP.y);
+            const { col, row } = coordinate.toBoardPos(svgP.x, svgP.y);
 
-            if (!coordinate.isValidPosition(boardPos.col, boardPos.row)) return;
+            if (!coordinate.isValidPosition(col, row)) return;
 
-            const clickedPiece = pieces.find(p => p.col === boardPos.col && p.row === boardPos.row);
+            const clickedPiece = pieces.find(p => p.col === col && p.row === row);
             if (clickedPiece) {
                 handlePieceClick(e, clickedPiece);
             } else if (selectedPiece) {
-                moveSelectedPieceTo(boardPos.col, boardPos.row);
+                moveSelectedPieceTo(col, row);
             }
         }
 
-        // 棋子选择函数
         function selectPiece(g) {
-            g.querySelector('circle').setAttribute('stroke-width', '2');
+            const circle = g.querySelector('circle');
+            circle.setAttribute('stroke-width', '2');
         }
 
         function deselectPiece(g) {
-            g.querySelector('circle').setAttribute('stroke-width', '1');
+            const circle = g.querySelector('circle');
+            circle.setAttribute('stroke-width', '1');
         }
 
-        // 棋子移动函数
         function movePiece(fromCol, fromRow, toCol, toRow) {
-            // 边界检查
             if (!coordinate.isValidPosition(toCol, toRow)) return false;
-
-            // 目标位置检查
             if (hasPieceAt(toCol, toRow)) return false;
 
-            // 源位置检查
             const pieceIndex = pieces.findIndex(p => p.col === fromCol && p.row === fromRow);
             if (pieceIndex === -1) return false;
 
-            // 执行移动
             const piece = pieces[pieceIndex];
             const oldId = `${fromCol}-${fromRow}`;
             const newId = `${toCol}-${toRow}`;
-
             piece.col = toCol;
             piece.row = toRow;
 
             const pieceEl = document.querySelector(`#pieces g[data-piece-id="${oldId}"]`);
-            if (!pieceEl) return false;
 
             pieceEl.dataset.pos = `${toCol},${toRow}`;
             pieceEl.dataset.pieceId = newId;
@@ -463,6 +340,7 @@
         function moveSelectedPieceTo(col, row) {
             if (!selectedPiece) return;
             const success = movePiece(selectedPiece.col, selectedPiece.row, col, row);
+
             if (success) {
                 const g = document.querySelector(`#pieces g[data-piece-id="${col}-${row}"]`);
                 if (g) deselectPiece(g);
@@ -470,7 +348,6 @@
             }
         }
 
-        // 路径处理函数
         function parsePaths(input) {
             const paths = [];
             const pathMatches = input.match(/\(\s*\d+\s*,\s*\d+\s*\)(?:\s*-\s*\(\s*\d+\s*,\s*\d+\s*\))+/g) || [];
@@ -480,12 +357,12 @@
                 for (let i = 0; i < points.length - 2; i += 2) {
                     const c1 = points[i], r1 = points[i + 1];
                     const c2 = points[i + 2], r2 = points[i + 3];
-                    if (c1 >= 1 && c1 <= CONFIG.NUM_FILES && r1 >= 1 && r1 <= CONFIG.NUM_RANKS &&
-                        c2 >= 1 && c2 <= CONFIG.NUM_FILES && r2 >= 1 && r2 <= CONFIG.NUM_RANKS) {
+                    if (coordinate.isValidPosition(c1, r1) && coordinate.isValidPosition(c2, r2)) {
                         paths.push({ c1, r1, c2, r2 });
                     }
                 }
             }
+
             return paths;
         }
 
@@ -500,9 +377,9 @@
                 layer.appendChild(el('line', {
                     x1: p1.x, y1: p1.y,
                     x2: p2.x, y2: p2.y,
-                    stroke: CONFIG.COLORS.PATH,
-                    'stroke-dasharray': '5,5',
-                    'stroke-width': '2'
+                    stroke: 'var(--path-color)',
+                    'stroke-width': '2',
+                    'stroke-dasharray': '5,5'
                 }));
             });
         }
@@ -514,51 +391,32 @@
             }
         }
 
-        // 工具函数
         function hasPieceAt(col, row) {
             return pieces.some(p => p.col === col && p.row === row);
         }
 
-        // 初始化函数
         function initChessboard() {
             const svg = document.getElementById('chessboard');
             svg.setAttribute('width', SVG_SIZE);
             svg.setAttribute('height', SVG_SIZE);
             svg.innerHTML = '';
 
-            // 创建图层
             const layers = {
-                background: el('g', { id: 'background' }),
-                grid: el('g', { id: 'gridLayer' }),
-                river: el('g', { id: 'riverLayer' }),
+                grid: drawGrid(),
+                river: drawRiver(),
                 paths: el('g', { id: 'paths' }),
                 pieces: el('g', { id: 'pieces' })
             };
 
-            // 设置背景
-            layers.background.appendChild(createWoodTexture());
-            layers.background.appendChild(el('rect', {
-                width: '100%',
-                height: '100%',
-                fill: 'url(#woodPattern)'
-            }));
-
-            // 绘制棋盘元素
-            layers.grid.appendChild(drawGrid());
-            layers.river.appendChild(drawRiver());
-
-            // 按正确顺序添加图层
             Object.values(layers).forEach(layer => svg.appendChild(layer));
 
-            // 初始化棋子
             initializePieces();
             drawPieces();
-
-            // 添加事件监听
             svg.addEventListener('click', handleBoardClick);
+            document.getElementById('drawPathsBtn').addEventListener('click', drawPaths);
+            document.getElementById('movePiecesBtn').addEventListener('click', movePieces);
         }
 
-        // 初始化应用
         initChessboard();
     </script>
 </body>
