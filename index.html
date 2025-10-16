@@ -12,6 +12,7 @@
             --bg-color: #f8f9fa;
             --red-piece-color: #d32f2f;
             --path-color: #1565c0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
         }
 
         @media (prefers-color-scheme: dark) {
@@ -20,6 +21,7 @@
                 --bg-color: #212529;
                 --red-piece-color: #ff5252;
                 --path-color: #64b5f6;
+                --shadow-color: rgba(255, 255, 255, 0.08);
             }
         }
 
@@ -38,12 +40,14 @@
         .container {
             align-items: center;
             display: flex;
-            gap: 8px;
+            gap: 20px;
         }
 
         #chessboard {
             border: 1px solid var(--fg-color);
             cursor: default;
+            filter: drop-shadow(2px 2px 2px var(--shadow-color));
+            box-shadow: 2px 2px 2px var(--shadow-color);
         }
 
         .controls {
@@ -55,7 +59,7 @@
 
         textarea {
             font-family: monospace;
-            height: 200px;
+            height: 300px;
             resize: none;
         }
     </style>
@@ -81,7 +85,7 @@
     </div>
 
     <script>
-        const PIECE_SIZE = 20;
+        const PIECE_SIZE = 32;
         const CONFIG = {
             NUM_FILES: 9,
             NUM_RANKS: 10
