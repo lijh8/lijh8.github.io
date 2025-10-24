@@ -144,7 +144,7 @@
             const gridLayer = el('g');
 
             for (let i = 0; i < CONFIG.NUM_RANKS; i++) {
-                const y = VERTICAL_MARGIN + i * CELL_SIZE + 0.5; // 1px的svg直线把坐标加0.5更清晰
+                const y = VERTICAL_MARGIN + i * CELL_SIZE;
                 gridLayer.appendChild(el('line', {
                     x1: HORIZONTAL_MARGIN, y1: y,
                     x2: HORIZONTAL_MARGIN + BOARD_WIDTH, y2: y,
@@ -154,7 +154,7 @@
             }
 
             for (let i = 0; i < CONFIG.NUM_FILES; i++) {
-                const x = HORIZONTAL_MARGIN + i * CELL_SIZE + 0.5; // 1px的svg直线把坐标加0.5更清晰
+                const x = HORIZONTAL_MARGIN + i * CELL_SIZE;
                 gridLayer.appendChild(el('line', {
                     x1: x, y1: VERTICAL_MARGIN,
                     x2: x, y2: VERTICAL_MARGIN + BOARD_HEIGHT,
@@ -188,16 +188,16 @@
             const riverY = VERTICAL_MARGIN + 4 * CELL_SIZE;
 
             riverLayer.appendChild(el('rect', {
-                x: HORIZONTAL_MARGIN + 0.5, // 1px的svg直线把坐标加0.5更清晰
-                y: riverY + 0.5,
+                x: HORIZONTAL_MARGIN,
+                y: riverY,
                 width: BOARD_WIDTH,
                 height: CELL_SIZE,
                 fill: 'var(--bg-color)'
             }));
 
             const riverText = el('text', {
-                x: HORIZONTAL_MARGIN + BOARD_WIDTH / 2 + 0.5, // 1px的svg直线把坐标加0.5更清晰
-                y: riverY + CELL_SIZE / 2 + 0.5,
+                x: HORIZONTAL_MARGIN + BOARD_WIDTH / 2,
+                y: riverY + CELL_SIZE / 2,
                 fill: 'var(--fg-color)',
                 'font-size': PIECE_SIZE,
                 'dominant-baseline': 'middle',
@@ -208,6 +208,57 @@
             riverLayer.appendChild(riverText);
 
             return riverLayer;
+        }
+
+        function drawDecorations() {
+            const decorationLayer = el('g');
+            const L_LENGTH = CELL_SIZE / 5;
+            const OFFSET = 4;
+
+            const positions = [
+                { col: 8, row: 8 }, { col: 2, row: 8 },
+                { col: 9, row: 7 }, { col: 7, row: 7 }, { col: 5, row: 7 }, { col: 3, row: 7 }, { col: 1, row: 7 },
+                { col: 9, row: 4 }, { col: 7, row: 4 }, { col: 5, row: 4 }, { col: 3, row: 4 }, { col: 1, row: 4 },
+                { col: 8, row: 3 }, { col: 2, row: 3 }
+            ];
+
+            positions.forEach(pos => {
+                const svgPos = coordinate.toSVGPos(pos.col, pos.row);
+                const x = svgPos.x;
+                const y = svgPos.y;
+
+                const offsets = [
+                    { dx: -OFFSET, dy: -OFFSET, signX: -1, signY: -1 },
+                    { dx: OFFSET, dy: -OFFSET, signX: 1, signY: -1 },
+                    { dx: -OFFSET, dy: OFFSET, signX: -1, signY: 1 },
+                    { dx: OFFSET, dy: OFFSET, signX: 1, signY: 1 }
+                ];
+
+                offsets.forEach(({ dx, dy, signX, signY }) => {
+                    if (pos.col === 1 && signX === 1) return;
+
+                    if (pos.col === 9 && signX === -1) return;
+
+                    decorationLayer.appendChild(el('line', {
+                        x1: x + dx,
+                        y1: y + dy,
+                        x2: x + dx,
+                        y2: y + dy + signY * L_LENGTH,
+                        stroke: 'var(--fg-color)',
+                        'stroke-width': '1'
+                    }));
+                    decorationLayer.appendChild(el('line', {
+                        x1: x + dx,
+                        y1: y + dy,
+                        x2: x + dx + signX * L_LENGTH,
+                        y2: y + dy,
+                        stroke: 'var(--fg-color)',
+                        'stroke-width': '1'
+                    }));
+                });
+            });
+
+            return decorationLayer;
         }
 
         function initializePieces() {
@@ -382,8 +433,8 @@
                 const p1 = coordinate.toSVGPos(path.c1, path.r1);
                 const p2 = coordinate.toSVGPos(path.c2, path.r2);
                 layer.appendChild(el('line', {
-                    x1: p1.x, y1: p1.y,
-                    x2: p2.x, y2: p2.y,
+                    x1: p1.x - 1, y1: p1.y - 1, // -1 避开网格线
+                    x2: p2.x - 1, y2: p2.y - 1, // -1 避开网格线
                     stroke: 'var(--path-color)',
                     'stroke-width': '2',
                     'stroke-dasharray': '5,5'
@@ -411,6 +462,7 @@
             const layers = {
                 grid: drawGrid(),
                 river: drawRiver(),
+                decorations: drawDecorations(),
                 paths: el('g', { id: 'paths' }),
                 pieces: el('g', { id: 'pieces' })
             };
