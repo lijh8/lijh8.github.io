@@ -82,14 +82,14 @@
     </div>
 
     <script>
-        const PIECE_SIZE = 32;
         const CONFIG = {
             NUM_FILES: 9,
-            NUM_RANKS: 10
+            NUM_RANKS: 10,
+            PIECE_SIZE: 36
         };
-        const CELL_SIZE = PIECE_SIZE * 1.5;
-        const RADIUS = PIECE_SIZE * 0.65;
-        const VERTICAL_MARGIN = RADIUS * 2;
+        const FONT_SIZE = CONFIG.PIECE_SIZE * 0.76;
+        const CELL_SIZE = CONFIG.PIECE_SIZE * 1.15;
+        const VERTICAL_MARGIN = CONFIG.PIECE_SIZE;
         const BOARD_WIDTH = (CONFIG.NUM_FILES - 1) * CELL_SIZE;
         const BOARD_HEIGHT = (CONFIG.NUM_RANKS - 1) * CELL_SIZE;
         const SVG_SIZE = BOARD_HEIGHT + VERTICAL_MARGIN * 2;
@@ -196,7 +196,7 @@
                 x: HORIZONTAL_MARGIN + BOARD_WIDTH / 2,
                 y: riverY + CELL_SIZE / 2,
                 fill: 'var(--fg-color)',
-                'font-size': PIECE_SIZE,
+                'font-size': FONT_SIZE,
                 'dominant-baseline': 'middle',
                 'text-anchor': 'middle'
             });
@@ -291,7 +291,7 @@
                 });
 
                 g.appendChild(el('circle', {
-                    r: RADIUS,
+                    r: CONFIG.PIECE_SIZE / 2,
                     fill: 'var(--bg-color)',
                     stroke: 'var(--fg-color)',
                     'stroke-width': '1'
@@ -299,7 +299,7 @@
 
                 const text = el('text', {
                     fill: piece.color === 'black' ? 'var(--fg-color)' : 'var(--red-piece-color)',
-                    'font-size': PIECE_SIZE,
+                    'font-size': FONT_SIZE,
                     'dominant-baseline': 'middle',
                     'text-anchor': 'middle'
                 });
