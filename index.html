@@ -8,7 +8,6 @@
     <style>
         :root {
             color-scheme: light dark;
-
             --fg-color: #212529;
             --bg-color: #f8f9fa;
             --red-piece-color: #d32f2f;
@@ -27,7 +26,6 @@
         body {
             color: var(--fg-color);
             background-color: var(--bg-color);
-
             align-items: center;
             display: flex;
             flex-direction: column;
@@ -87,6 +85,7 @@
             NUM_RANKS: 10,
             PIECE_SIZE: 36
         };
+        const RADIUS = CONFIG.PIECE_SIZE / 2;
         const FONT_SIZE = CONFIG.PIECE_SIZE * 0.76;
         const CELL_SIZE = CONFIG.PIECE_SIZE * 1.15;
         const VERTICAL_MARGIN = CONFIG.PIECE_SIZE;
@@ -138,11 +137,11 @@
         }
 
         function drawGrid() {
-            const gridLayer = el('g');
+            const layer = el('g');
 
             for (let i = 0; i < CONFIG.NUM_RANKS; i++) {
                 const y = VERTICAL_MARGIN + i * CELL_SIZE;
-                gridLayer.appendChild(el('line', {
+                layer.appendChild(el('line', {
                     x1: HORIZONTAL_MARGIN, y1: y,
                     x2: HORIZONTAL_MARGIN + BOARD_WIDTH, y2: y,
                     stroke: 'var(--fg-color)',
@@ -152,7 +151,7 @@
 
             for (let i = 0; i < CONFIG.NUM_FILES; i++) {
                 const x = HORIZONTAL_MARGIN + i * CELL_SIZE;
-                gridLayer.appendChild(el('line', {
+                layer.appendChild(el('line', {
                     x1: x, y1: VERTICAL_MARGIN,
                     x2: x, y2: VERTICAL_MARGIN + BOARD_HEIGHT,
                     stroke: 'var(--fg-color)',
@@ -161,7 +160,7 @@
             }
 
             const drawDiagonal = (x1, y1, x2, y2) => {
-                gridLayer.appendChild(el('line', { x1, y1, x2, y2, stroke: 'var(--fg-color)', 'stroke-width': '1' }));
+                layer.appendChild(el('line', { x1, y1, x2, y2, stroke: 'var(--fg-color)', 'stroke-width': '1' }));
             };
 
             const diagonals = [
@@ -177,14 +176,14 @@
                 drawDiagonal(p1.x, p1.y, p2.x, p2.y);
             });
 
-            return gridLayer;
+            return layer;
         }
 
         function drawRiver() {
-            const riverLayer = el('g');
+            const layer = el('g');
             const riverY = VERTICAL_MARGIN + 4 * CELL_SIZE;
 
-            riverLayer.appendChild(el('rect', {
+            layer.appendChild(el('rect', {
                 x: HORIZONTAL_MARGIN,
                 y: riverY,
                 width: BOARD_WIDTH,
@@ -202,24 +201,24 @@
             });
 
             riverText.textContent = "楚 河 汉 界";
-            riverLayer.appendChild(riverText);
+            layer.appendChild(riverText);
 
-            return riverLayer;
+            return layer;
         }
 
-        function drawDecorations() {
-            const decorationLayer = el('g');
+        function drawMarkers() {
+            const layer = el('g');
             const L_LENGTH = CELL_SIZE / 5;
             const OFFSET = 4;
 
-            const DECORATION_ROWS = [
+            const Marker_ROWS = [
                 { row: 8, cols: [2, 8] },
                 { row: 7, cols: [1, 3, 5, 7, 9] },
                 { row: 4, cols: [1, 3, 5, 7, 9] },
                 { row: 3, cols: [2, 8] }
             ];
 
-            DECORATION_ROWS.forEach(({ row, cols }) => {
+            Marker_ROWS.forEach(({ row, cols }) => {
                 cols.forEach(col => {
                     const svgPos = coordinate.toSVGPos(col, row);
                     const x = svgPos.x;
@@ -236,7 +235,7 @@
                         if (col === 1 && dirX === 1) return;
                         if (col === 9 && dirX === -1) return;
 
-                        decorationLayer.appendChild(el('line', {
+                        layer.appendChild(el('line', {
                             x1: x + dx,
                             y1: y + dy,
                             x2: x + dx,
@@ -244,7 +243,7 @@
                             stroke: 'var(--fg-color)',
                             'stroke-width': '1'
                         }));
-                        decorationLayer.appendChild(el('line', {
+                        layer.appendChild(el('line', {
                             x1: x + dx,
                             y1: y + dy,
                             x2: x + dx + dirX * L_LENGTH,
@@ -256,7 +255,7 @@
                 });
             });
 
-            return decorationLayer;
+            return layer;
         }
 
         function initializePieces() {
@@ -277,8 +276,8 @@
         }
 
         function drawPieces() {
-            const pieceLayer = document.getElementById('pieces');
-            pieceLayer.innerHTML = '';
+            const layer = document.getElementById('pieces');
+            layer.innerHTML = '';
 
             pieces.forEach(piece => {
                 const pos = coordinate.toSVGPos(piece.col, piece.row);
@@ -291,7 +290,7 @@
                 });
 
                 g.appendChild(el('circle', {
-                    r: CONFIG.PIECE_SIZE / 2,
+                    r: RADIUS,
                     fill: 'var(--bg-color)',
                     stroke: 'var(--fg-color)',
                     'stroke-width': '1'
@@ -308,7 +307,7 @@
                 g.appendChild(text);
                 g.addEventListener('dblclick', (e) => handlePieceDoubleClick(e, piece));
                 g.addEventListener('click', (e) => handlePieceClick(e, piece));
-                pieceLayer.appendChild(g);
+                layer.appendChild(g);
             });
         }
 
@@ -460,7 +459,7 @@
             const layers = {
                 grid: drawGrid(),
                 river: drawRiver(),
-                decorations: drawDecorations(),
+                markers: drawMarkers(),
                 paths: el('g', { id: 'paths' }),
                 pieces: el('g', { id: 'pieces' })
             };
