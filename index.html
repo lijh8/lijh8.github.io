@@ -209,7 +209,7 @@
 
         function drawMarkers() {
             const layer = el('g');
-            const L_LENGTH = CELL_SIZE / 5;
+            const LENGTH = CELL_SIZE / 5;
             const OFFSET = 4;
 
             const Marker_ROWS = [
@@ -240,14 +240,14 @@
                             x1: x + dx,
                             y1: y + dy,
                             x2: x + dx,
-                            y2: y + dy + dirY * L_LENGTH,
+                            y2: y + dy + dirY * LENGTH,
                             stroke: 'var(--fg-color)',
                             'stroke-width': '1'
                         }));
                         layer.appendChild(el('line', {
                             x1: x + dx,
                             y1: y + dy,
-                            x2: x + dx + dirX * L_LENGTH,
+                            x2: x + dx + dirX * LENGTH,
                             y2: y + dy,
                             stroke: 'var(--fg-color)',
                             'stroke-width': '1'
@@ -277,7 +277,7 @@
         }
 
         function drawPieces() {
-            const layer = document.getElementById('pieces');
+            const layer = el('g', { id: 'pieces' });
             layer.innerHTML = '';
 
             pieces.forEach(piece => {
@@ -310,14 +310,15 @@
                 g.addEventListener('click', (e) => handlePieceClick(e, piece));
                 layer.appendChild(g);
             });
+            return layer;
         }
 
         function handlePieceDoubleClick(e, piece) {
             e.stopPropagation();
-            const idx = pieces.findIndex(p => p.col === piece.col && p.row === piece.row);
+            const index = pieces.findIndex(p => p.col === piece.col && p.row === piece.row);
 
-            if (idx !== -1) {
-                pieces.splice(idx, 1);
+            if (index !== -1) {
+                pieces.splice(index, 1);
                 e.target.closest('g').remove();
                 if (selectedPiece && selectedPiece.col === piece.col && selectedPiece.row === piece.row) {
                     selectedPiece = null;
@@ -327,17 +328,17 @@
 
         function handlePieceClick(e, piece) {
             e.stopPropagation();
-            const pieceEl = document.querySelector(`#pieces g[data-piece-id="${piece.col}-${piece.row}"]`);
+            const el = document.querySelector(`#pieces g[data-piece-id="${piece.col}-${piece.row}"]`);
 
             if (selectedPiece && selectedPiece.col === piece.col && selectedPiece.row === piece.row) {
-                deselectPiece(pieceEl);
+                deselectPiece(el);
                 selectedPiece = null;
             } else {
                 if (selectedPiece) {
                     const oldEl = document.querySelector(`#pieces g[data-piece-id="${selectedPiece.col}-${selectedPiece.row}"]`);
                     if (oldEl) deselectPiece(oldEl);
                 }
-                selectPiece(pieceEl);
+                selectPiece(el);
                 selectedPiece = piece;
             }
         }
@@ -347,8 +348,8 @@
             const pt = svg.createSVGPoint();
             pt.x = e.clientX;
             pt.y = e.clientY;
-            const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-            const { col, row } = coordinate.toBoardPos(svgP.x, svgP.y);
+            const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+            const { col, row } = coordinate.toBoardPos(svgPt.x, svgPt.y);
 
             if (!coordinate.isValidPosition(col, row)) return;
 
@@ -457,18 +458,17 @@
             svg.setAttribute('height', SVG_SIZE);
             svg.innerHTML = '';
 
+            initializePieces();
+
             const layers = {
                 grid: drawGrid(),
                 river: drawRiver(),
                 markers: drawMarkers(),
                 paths: el('g', { id: 'paths' }),
-                pieces: el('g', { id: 'pieces' })
+                pieces: drawPieces()
             };
 
             Object.values(layers).forEach(layer => svg.appendChild(layer));
-
-            initializePieces();
-            drawPieces();
             svg.addEventListener('click', handleBoardClick);
             document.getElementById('drawPathsBtn').addEventListener('click', drawPaths);
             document.getElementById('movePiecesBtn').addEventListener('click', movePieces);
