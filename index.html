@@ -277,7 +277,7 @@
         }
 
         function drawPieces() {
-            const layer = el('g', { id: 'pieces' });
+            const layer = document.getElementById('pieces');
             layer.innerHTML = '';
 
             pieces.forEach(piece => {
@@ -310,7 +310,6 @@
                 g.addEventListener('click', (e) => handlePieceClick(e, piece));
                 layer.appendChild(g);
             });
-            return layer;
         }
 
         function handlePieceDoubleClick(e, piece) {
@@ -375,21 +374,21 @@
             if (!coordinate.isValidPosition(toCol, toRow)) return false;
             if (hasPieceAt(toCol, toRow)) return false;
 
-            const pieceIndex = pieces.findIndex(p => p.col === fromCol && p.row === fromRow);
-            if (pieceIndex === -1) return false;
+            const index = pieces.findIndex(p => p.col === fromCol && p.row === fromRow);
+            if (index === -1) return false;
 
-            const piece = pieces[pieceIndex];
+            const piece = pieces[index];
             const oldId = `${fromCol}-${fromRow}`;
             const newId = `${toCol}-${toRow}`;
             piece.col = toCol;
             piece.row = toRow;
 
-            const pieceEl = document.querySelector(`#pieces g[data-piece-id="${oldId}"]`);
+            const el = document.querySelector(`#pieces g[data-piece-id="${oldId}"]`);
 
-            pieceEl.dataset.pos = `${toCol},${toRow}`;
-            pieceEl.dataset.pieceId = newId;
+            el.dataset.pos = `${toCol},${toRow}`;
+            el.dataset.pieceId = newId;
             const newPos = coordinate.toSVGPos(toCol, toRow);
-            pieceEl.setAttribute('transform', `translate(${newPos.x}, ${newPos.y})`);
+            el.setAttribute('transform', `translate(${newPos.x}, ${newPos.y})`);
 
             return true;
         }
@@ -458,17 +457,18 @@
             svg.setAttribute('height', SVG_SIZE);
             svg.innerHTML = '';
 
-            initializePieces();
-
             const layers = {
                 grid: drawGrid(),
                 river: drawRiver(),
                 markers: drawMarkers(),
                 paths: el('g', { id: 'paths' }),
-                pieces: drawPieces()
+                pieces: el('g', { id: 'pieces' })
             };
-
             Object.values(layers).forEach(layer => svg.appendChild(layer));
+
+            initializePieces();
+            drawPieces();
+
             svg.addEventListener('click', handleBoardClick);
             document.getElementById('drawPathsBtn').addEventListener('click', drawPaths);
             document.getElementById('movePiecesBtn').addEventListener('click', movePieces);
