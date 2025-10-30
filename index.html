@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark" />
     <title>中国象棋</title>
     <style>
@@ -81,10 +82,14 @@
     </div>
 
     <script>
+
+        const isMobile = window.innerWidth <= 768; // 768px: common mobile/tablet breakpoint
+        const CELL_SIZE = isMobile ? (window.innerWidth - 2) / 10 : 38; // -2px for 1px border on both sides of svg chessboard
+
         const CONFIG = {
             NUM_FILES: 9,
             NUM_RANKS: 10,
-            CELL_SIZE: 38
+            CELL_SIZE: CELL_SIZE
         };
         const PIECE_SIZE = CONFIG.CELL_SIZE * 0.86;
         const RADIUS = PIECE_SIZE / 2;
