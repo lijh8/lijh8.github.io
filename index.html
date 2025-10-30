@@ -3,7 +3,6 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark" />
     <title>中国象棋</title>
     <style>
@@ -85,27 +84,27 @@
         const CONFIG = {
             NUM_FILES: 9,
             NUM_RANKS: 10,
-            PIECE_SIZE: 20
+            CELL_SIZE: 38
         };
-        const RADIUS = CONFIG.PIECE_SIZE / 2;
-        const FONT_SIZE = CONFIG.PIECE_SIZE * 0.76;
-        const CELL_SIZE = CONFIG.PIECE_SIZE * 1.15;
-        const MARGIN = CONFIG.PIECE_SIZE;
-        const BOARD_WIDTH = (CONFIG.NUM_FILES - 1) * CELL_SIZE;
-        const BOARD_HEIGHT = (CONFIG.NUM_RANKS - 1) * CELL_SIZE;
+        const PIECE_SIZE = CONFIG.CELL_SIZE * 0.86;
+        const RADIUS = PIECE_SIZE / 2;
+        const FONT_SIZE = PIECE_SIZE * 0.76;
+        const MARGIN = CONFIG.CELL_SIZE;
+        const BOARD_WIDTH = (CONFIG.NUM_FILES - 1) * CONFIG.CELL_SIZE;
+        const BOARD_HEIGHT = (CONFIG.NUM_RANKS - 1) * CONFIG.CELL_SIZE;
         const SVG_WIDTH = BOARD_WIDTH + MARGIN * 2;
         const SVG_HEIGHT = BOARD_HEIGHT + MARGIN * 2;
 
         const coordinate = {
             toSVGPos(col, row) {
                 return {
-                    x: MARGIN + (CONFIG.NUM_FILES - col) * CELL_SIZE,
-                    y: MARGIN + (CONFIG.NUM_RANKS - row) * CELL_SIZE
+                    x: MARGIN + (CONFIG.NUM_FILES - col) * CONFIG.CELL_SIZE,
+                    y: MARGIN + (CONFIG.NUM_RANKS - row) * CONFIG.CELL_SIZE
                 };
             },
             toBoardPos(x, y) {
-                const col = CONFIG.NUM_FILES - Math.round((x - MARGIN) / CELL_SIZE);
-                const row = CONFIG.NUM_RANKS - Math.round((y - MARGIN) / CELL_SIZE);
+                const col = CONFIG.NUM_FILES - Math.round((x - MARGIN) / CONFIG.CELL_SIZE);
+                const row = CONFIG.NUM_RANKS - Math.round((y - MARGIN) / CONFIG.CELL_SIZE);
                 return { col, row };
             },
             isValidPosition(col, row) {
@@ -142,7 +141,7 @@
             const layer = el('g');
 
             for (let i = 0; i < CONFIG.NUM_RANKS; i++) {
-                const y = MARGIN + i * CELL_SIZE;
+                const y = MARGIN + i * CONFIG.CELL_SIZE;
                 layer.appendChild(el('line', {
                     x1: MARGIN, y1: y,
                     x2: MARGIN + BOARD_WIDTH, y2: y,
@@ -152,7 +151,7 @@
             }
 
             for (let i = 0; i < CONFIG.NUM_FILES; i++) {
-                const x = MARGIN + i * CELL_SIZE;
+                const x = MARGIN + i * CONFIG.CELL_SIZE;
                 layer.appendChild(el('line', {
                     x1: x, y1: MARGIN,
                     x2: x, y2: MARGIN + BOARD_HEIGHT,
@@ -183,19 +182,19 @@
 
         function drawRiver() {
             const layer = el('g');
-            const riverY = MARGIN + 4 * CELL_SIZE;
+            const riverY = MARGIN + 4 * CONFIG.CELL_SIZE;
 
             layer.appendChild(el('rect', {
                 x: MARGIN,
                 y: riverY,
                 width: BOARD_WIDTH,
-                height: CELL_SIZE,
+                height: CONFIG.CELL_SIZE,
                 fill: 'var(--bg-color)'
             }));
 
             const riverText = el('text', {
                 x: MARGIN + BOARD_WIDTH / 2,
-                y: riverY + CELL_SIZE / 2,
+                y: riverY + CONFIG.CELL_SIZE / 2,
                 fill: 'var(--fg-color)',
                 'font-size': FONT_SIZE,
                 'dominant-baseline': 'middle',
@@ -210,7 +209,7 @@
 
         function drawMarkers() {
             const layer = el('g');
-            const LENGTH = CELL_SIZE / 5;
+            const LENGTH = CONFIG.CELL_SIZE / 5;
             const OFFSET = 4;
 
             const Marker_ROWS = [
