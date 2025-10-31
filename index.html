@@ -13,6 +13,7 @@
             --bg-color: #f8f9fa;
             --red-piece-color: #d32f2f;
             --path-color: #1565c0;
+            --cell-size: 46px;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -21,6 +22,14 @@
                 --bg-color: #212529;
                 --red-piece-color: #ff5252;
                 --path-color: #64b5f6;
+            }
+        }
+
+        /* 768px: common mobile/tablet breakpoint */
+        @media (max-width: 768px) {
+            :root {
+                /* -2px for 1px border on left and right sides of svg chessboard */
+                --cell-size: calc((100vw - 2px) / 10);
             }
         }
 
@@ -83,13 +92,24 @@
 
     <script>
 
-        const isMobile = window.innerWidth <= 768; // 768px: common mobile/tablet breakpoint
-        const CELL_SIZE = isMobile ? (window.innerWidth - 2) / 10 : 38; // -2px for 1px border on both sides of svg chessboard
+        // const isMobile = window.innerWidth <= 768; // 768px: common mobile/tablet breakpoint
+        // const CELL_SIZE = isMobile ? (window.innerWidth - 2) / 10 : 46; // -2px for 1px border on left and right sides of svg chessboard
+
+        function cellSize() {
+            const tmp = Object.assign(document.createElement('div'), {
+                style: 'width:var(--cell-size);visibility:hidden'
+            });
+            document.body.appendChild(tmp);
+            const size = parseFloat(getComputedStyle(tmp).width);
+            document.body.removeChild(tmp);
+            return isNaN(size) ? 46 : size;
+        }
 
         const CONFIG = {
             NUM_FILES: 9,
             NUM_RANKS: 10,
-            CELL_SIZE: CELL_SIZE
+            // CELL_SIZE: CELL_SIZE
+            CELL_SIZE: cellSize()
         };
         const PIECE_SIZE = CONFIG.CELL_SIZE * 0.86;
         const RADIUS = PIECE_SIZE / 2;
